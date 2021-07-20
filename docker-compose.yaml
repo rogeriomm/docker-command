@@ -1,0 +1,16 @@
+version: "3"
+
+services:
+   command:
+     image: rogermm/command:1.0
+     container_name: command
+     #restart: unless-stopped
+     entrypoint: /bin/bash
+     stdin_open: true
+     networks:
+       - spark-net
+
+networks:
+  spark-net:
+    external:
+      name: spark-net
