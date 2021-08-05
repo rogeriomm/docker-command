@@ -1,4 +1,4 @@
-   * http://localhost:8080/
+   * http://localhost:8080/dashboard/#/
    * http://airflow.bdb/home
    * http://zeppelin.bdb/#/
    * http://pgadmin.bdb/browser/
