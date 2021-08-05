@@ -2,15 +2,71 @@ version: "3"
 
 services:
    command:
-     image: rogermm/command:1.0
+     image: rogermm/command:master
      container_name: command
      #restart: unless-stopped
      entrypoint: /bin/bash
      stdin_open: true
+     environment:
+       - TZ=America/Sao_Paulo
      networks:
        - spark-net
+     volumes:
+       - work:/data
+
+   tinyproxy:
+     image: rogermm/tinyproxy:master
+     container_name: tinyproxy
+     ports:
+       - 8888:8888
+     networks:
+       - spark-net
+
+   # https://doc.traefik.io/traefik/user-guides/docker-compose/basic-example/
+   traefik:
+     image: traefik:v2.4.12
+     container_name: traefik
+     restart: always
+     command:
+       #- "--log.level=DEBUG"
+       - "--api.insecure=true"
+       # Enabling docker provider
+       - "--providers.docker=true"
+       # Do not expose containers unless explicitly told so
+       - "--providers.docker.exposedbydefault=false"
+       # Traefik will listen to incoming request on the port 80 (HTTP)
+       - "--entrypoints.web.address=:80"
+       # Traefik will listen to incoming request on the port 443 (HTTPS)
+       - "--entryPoints.websecure.address=:443"
+     ports:
+       - "80:80"
+       - "8080:8080"
+       - "443:443"
+     volumes:
+       - "/var/run/docker.sock:/var/run/docker.sock:ro"
+     networks:
+       spark-net:
+         aliases:
+           - nifi.bdb
+           - airflow.bdb
+           - minio.bdb
+           - pgadmin.bdb
+           - zeppelin.bdb
+           - wiki.bdb
+           - hue.bdb
+           - presto.bdb
+           - hadoop.hive.bdb
+           - hadoop.history.bdb
+           - hadoop.nodemanager.bdb
+           - hadoop.datanode.bdb
+           - hadoop.namenode.bdb
 
 networks:
   spark-net:
     external:
       name: spark-net
+
+volumes:
+  work:
+    external:
+      name: work
