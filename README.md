@@ -3,7 +3,8 @@
    * http://zeppelin.bdb/#/
    * http://pgadmin.bdb/browser/
       * User: pgadmin@gmail.com Password: pgadmin
-   * http://hue.bdb/hue
+   * http://hue.bdb/hue (doesn't work)
+      * http://localhost:8089/hue
    * http://nifi.bdb/nifi/
    * http://hadoop.namenode.bdb/dfshealth.html#tab-overview
    * http://hadoop.datanode.bdb/datanode.html#tab-overview
