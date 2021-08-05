@@ -1,7 +1,7 @@
    * http://localhost:8080/
    * http://airflow.bdb/
    * http://zeppelin.bdb/
-   * http://pgadmin.bdb/
+   * http://pgadmin.bdb/test
    * http://nifi.bdb/nifi/
    * http://hadoop.namenode.bdb/
    * http://hadoop.datanode.bdb/
