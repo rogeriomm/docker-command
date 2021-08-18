@@ -1,6 +1,6 @@
    * http://localhost:8080/dashboard/#/
    * http://airflow.bdb/home
-   * http://zeppelin.bdb/#/
+   * http://zeppelin.bdb/next/#/
    * http://pgadmin.bdb/browser/
       * User: pgadmin@gmail.com , Password: pgadmin
    * http://hue.bdb/hue (doesn't work)
