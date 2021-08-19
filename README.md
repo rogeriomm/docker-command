@@ -13,3 +13,5 @@
    * http://hadoop.history.bdb/applicationhistory/about
    * http://hadoop.nodemanager.bdb/node
    * http://hadoop.hive.bdb/hiveserver2.jsp
+   * Spark
+      * http://spark-master.bdb:8080/
