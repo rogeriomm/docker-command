@@ -15,3 +15,4 @@
    * http://hadoop.hive.bdb/hiveserver2.jsp
    * Spark
       * http://spark-master.bdb:8080/
+      * http://spark-worker-1.bdb:8081/
