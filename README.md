@@ -16,3 +16,7 @@
    * Spark
       * http://spark-master.bdb:8080/
       * http://spark-worker-1.bdb:8081/
+   
+       
+   * docker network create spark-net
+   * docker volume create --name=work

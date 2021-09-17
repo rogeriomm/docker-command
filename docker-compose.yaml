@@ -4,7 +4,7 @@ services:
    command:
      image: rogermm/command:master
      container_name: command
-     #restart: unless-stopped
+     restart: unless-stopped
      entrypoint: /bin/bash
      stdin_open: true
      environment:
@@ -12,7 +12,7 @@ services:
      networks:
        - spark-net
      volumes:
-       - work:/data
+       - work:/share
 
    tinyproxy:
      image: rogermm/tinyproxy:master
@@ -51,7 +51,8 @@ services:
            - airflow.bdb
            - minio.bdb
            - pgadmin.bdb
-           - zeppelin.bdb
+           - zeppelin9.bdb
+           - zeppelin10.bdb
            - wiki.bdb
            - hue.bdb
            - presto.bdb

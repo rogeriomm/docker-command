@@ -1,4 +1,4 @@
-FROM ubuntu:20.04
+FROM rogermm/spark-base-python:3.1.2-hadoop3.2-java11-bdb
 
 MAINTAINER Rogerio Matte Machado <rogermm@gmail.com>
 
@@ -6,7 +6,8 @@ ENV TZ=America/Sao_Paulo
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && apt-get upgrade -y
+#RUN apt-get update && apt-get upgrade -y
+RUN apt-get update
 
 RUN apt-get install -y \
       openjdk-11-jdk \
@@ -17,41 +18,55 @@ RUN apt-get install -y \
       wget \
       vim \
       links \
+      bind9-dnsutils \
+      inetutils-ping \
+      git \
+      htop \
+      apt-file \
+      net-tools \
+      procps \
+      htop \
       unzip \
       ack \
-      man-db
+      tree \
+      man-db \
+      libpq-dev \
+      librdkafka-dev
 
-RUN apt-get install -y apt-file
-RUN apt-file update
+RUN apt-get upgrade -y
+
+WORKDIR /root
+
+RUN git clone https://github.com/apache/spark.git
+
+RUN cd spark ; git checkout v3.1.2
+
+RUN cd spark ; ./build/mvn -v
+
+# Apache Maven: Setting up Maven’s Memory Usage
+ENV MAVEN_OPTS="-Xmx2g -XX:ReservedCodeCacheSize=2g"
+
+#RUN cd spark ; ./build/mvn -Pyarn -Phive -Phive-thriftserver -Dhadoop.version=3.3.1 -DskipTests --log-file build.txt clean package
+
+# -Dhadoop.version=3.3.1
+RUN cd spark ; \
+    ./dev/make-distribution.sh --name custom-spark --pip --tgz \
+         -Psparkr -Phive -Phive-thriftserver -Pyarn -Pkubernetes -Dhadoop.version=3.3.1
+
+RUN cd spark ; \
+    ./build/mvn --log-file build-package-log.txt -DskipTests package
+
+RUN apt-get update ; apt-get upgrade -y ; apt clean
 
 RUN apt-get install -y \
-      python3 \
-      ipython3
-
-RUN apt-get install -y \
-     net-tools \
-     procps \
-     htop \
-     python3-pip \
-     libpq-dev \
-     librdkafka-dev
-
-#postgresql-common
-RUN pip3 install faker
-RUN pip3 install pandas
-RUN pip3 install psycopg2
-RUN pip3 install elasticsearch
-RUN pip3 install great_expectations
-RUN pip3 install jupyter
-RUN pip3 install confluent-kafka
-RUN pip3 install findspark
-
-RUN apt-get install -y \
-    bind9-dnsutils \
-    inetutils-ping
+            tree
 
 ADD entrypoint.sh /entrypoint.sh
 RUN chmod a+x /entrypoint.sh
 
 #ENTRYPOINT ["/entrypoint.sh"]
 #CMD ["/bin/bash", "-c", "sleep 10000"]
+
+#
+# https://docs.delta.io/latest/releases.html: DELTA Lake Compatibility with Apache Spark
+#
