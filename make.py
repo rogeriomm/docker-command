@@ -67,6 +67,8 @@ class DockerBuildComponent:
             if 'stream' in chunk:
                 for line in chunk['stream'].splitlines():
                     print(line)
+            elif 'status' in chunk:
+                print(f"{Fore.GREEN}{chunk}{Style.RESET_ALL}")
             elif 'message' in chunk:
                 for line in chunk['message'].splitlines():
                     print(f"{Fore.YELLOW}{line}{Style.RESET_ALL}")
