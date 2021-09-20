@@ -67,10 +67,16 @@ class DockerBuildComponent:
             if 'stream' in chunk:
                 for line in chunk['stream'].splitlines():
                     print(line)
-            if 'message' in chunk:
+            elif 'message' in chunk:
                 for line in chunk['message'].splitlines():
                     print(f"{Fore.YELLOW}{line}{Style.RESET_ALL}")
                 success = False
+            elif 'aux' in chunk:
+                pass
+            elif "\n" in chunk:
+                print("")
+            else:
+                print(f"######### Unknown chunk ########## {chunk}")
 
         return success
 
@@ -215,7 +221,7 @@ class AllBuildMk:
 
         try:
             for p in self.__prjs:
-                #print(f"===> {p.get_repos_name()}")
+                # print(f"===> {p.get_repos_name()}")
                 os.chdir(p.get_prj_dir())
                 match cd:
                     case ["build"]:
