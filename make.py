@@ -74,7 +74,7 @@ class DockerBuildComponent:
             elif 'aux' in chunk:
                 pass
             elif 'errorDetail' in chunk:
-                for line in chunk['message'].splitlines():
+                for line in chunk['errorDetail'].splitlines():
                     print(f"{Fore.YELLOW}{line}{Style.RESET_ALL}")
                 success = False
             elif "\n" in chunk:
