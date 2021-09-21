@@ -196,6 +196,7 @@ class AllBuildMk:
         p = BuildMk()
         p.scan()
         self.__prjs.append(p)
+        print(f"===> {p.get_repos_name()}")
         if p.has_prj_file():
             for d in p.get_dirs():
                 cur_dir = os.getcwd()  # save current directory
@@ -206,6 +207,7 @@ class AllBuildMk:
 
     def show(self):
         for p in self.__prjs:
+            print(f"===> {p.get_repos_name()}")
             if type(p) is BuildMk:
                 p.show()
 
@@ -226,7 +228,7 @@ class AllBuildMk:
 
         try:
             for p in self.__prjs:
-                # print(f"===> {p.get_repos_name()}")
+                print(f"===> {p.get_repos_name()}")
                 os.chdir(p.get_prj_dir())
                 match cd:
                     case ["build"]:
@@ -289,7 +291,6 @@ class AllBuildMk:
 
 
 def main():
-    # os.chdir("../")
     p = AllBuildMk()
     p.scan()
     argv = sys.argv[1:]
