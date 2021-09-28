@@ -9,7 +9,18 @@ from git import Repo
 from colorama import Fore, Style
 import getpass
 
-cli = docker.APIClient(base_url='unix://var/run/docker.sock')
+try:
+    dc = docker.from_env()
+except:
+    pass
+
+tls_config = docker.tls.TLSConfig(
+        ca_cert=dc.api.verify,
+        client_cert=dc.api.cert,
+        verify=True)
+
+# https://www.programcreek.com/python/?code=picoCTF%2FpicoCTF%2FpicoCTF-master%2FpicoCTF-shell%2Fhacksport%2Fdocker.py: Search "tls_config"
+cli = docker.APIClient(base_url=dc.api.base_url, tls=tls_config)
 username = getpass.getuser()
 github_username = "rogeriomm"
 
@@ -55,7 +66,7 @@ class DockerBuildComponent:
 
         tag = self.get_docker_name()
 
-        print(f" ============ Building {tag} ============ {args}")
+        print(f"============ Building {tag} ============ {args}")
 
         streamer = cli.build(path=f"./{self.name}", tag=tag,
                              nocache=False, rm=False, buildargs=args,
@@ -196,7 +207,6 @@ class AllBuildMk:
         p = BuildMk()
         p.scan()
         self.__prjs.append(p)
-        print(f"===> {p.get_repos_name()}")
         if p.has_prj_file():
             for d in p.get_dirs():
                 cur_dir = os.getcwd()  # save current directory
@@ -207,7 +217,6 @@ class AllBuildMk:
 
     def show(self):
         for p in self.__prjs:
-            print(f"===> {p.get_repos_name()}")
             if type(p) is BuildMk:
                 p.show()
 
