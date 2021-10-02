@@ -60,7 +60,7 @@ class DockerBuildComponent:
         return tag
 
     # https://docker-py.readthedocs.io/en/stable/api.html#module-docker.api.build
-    def build(self) -> bool:
+    def build(self, nocache: bool) -> bool:
         args = {"TAG": self.__branch, "USERNAME": self.username}
         args.update(self.parm)
 
@@ -69,7 +69,7 @@ class DockerBuildComponent:
         print(f"============ Building {tag} ============ {args}")
 
         streamer = cli.build(path=f"./{self.name}", tag=tag,
-                             nocache=False, rm=False, buildargs=args,
+                             nocache=nocache, rm=False, buildargs=args,
                              forcerm=True,
                              decode=True)
         success = True
@@ -168,12 +168,12 @@ class BuildMk:
         finally:
             flprj = None
 
-    def build(self):
+    def build(self, nocache=False):
         os.chdir(self.__dir)
         for p in self.__pkgs:
             if type(p) is list:
                 for c in p:
-                    if not c.build():
+                    if not c.build(nocache):
                         break  # Build failed
             else:
                 break  # Failed
@@ -242,6 +242,9 @@ class AllBuildMk:
                 match cd:
                     case ["build"]:
                         p.build()
+
+                    case ["rebuild"]:
+                        p.build(True)
 
                     case ["add", "origin"]:
                         cmd = f"git remote add origin git@github.com:{github_username}/{p.get_repos_name()}.git"
