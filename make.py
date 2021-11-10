@@ -6,34 +6,33 @@ import os
 import sys
 import docker
 from git import Repo
-from colorama import Fore, Style
 import getpass
+import time
 
-try:
-    dc = docker.from_env()
-except:
-    pass
-
-tls_config = docker.tls.TLSConfig(
-        ca_cert=dc.api.verify,
-        client_cert=dc.api.cert,
-        verify=True)
-
-# https://www.programcreek.com/python/?code=picoCTF%2FpicoCTF%2FpicoCTF-master%2FpicoCTF-shell%2Fhacksport%2Fdocker.py: Search "tls_config"
-cli = docker.APIClient(base_url=dc.api.base_url, tls=tls_config)
-username = getpass.getuser()
-github_username = "rogeriomm"
+from rich.console import Console
+from rich.style import Style
+from rich.theme import Theme
+from rich.traceback import install
+from rich.progress import Progress
+from rich.table import Table
+from rich.markdown import Markdown
+from rich.progress import track
 
 
 class DockerBuildComponent:
-    """ Docker build component """
+    """ Docker build component
+    Image naming conventions: REGISTRY[:PORT]/USER/REPO:TAG
 
-    def __init__(self, name: str, version: str = '', parm={}, prefix='', depends=[]):
+    REPO = {prefix}-{name}-{version}:{git branch}
+    """
+
+    def __init__(self, name: str, username=None, version: str = '', parm={}, prefix='', depends=[]):
         self.name = name
-        self.prefix = prefix
+        self.username = username
         self.version = version
         self.parm = parm
-        self.username = username
+        self.prefix = prefix
+
         self.__repo = Repo('.')
         self.__dir = os.getcwd()
         self.__branch = self.__repo.active_branch.name
@@ -45,28 +44,75 @@ class DockerBuildComponent:
         # print(f"Current branch: {self.__branch}")
         # print(f"Is dirty? {self.__repo.is_dirty()}")
         # print(f"Parameters: {self.parm}")
-        print(f"   name: \"{self.name}\", prefix: \"{self.prefix}\", version: \"{self.version}\", parm: {self.parm} ")
+        console.print(
+            f"   name: \"{self.name}\", prefix: \"{self.prefix}\", version: \"{self.version}\", parm: {self.parm} ")
+
+    def get_docker_repo(self) -> str:
+        repo = f"{registry_name}/" if registry_name is not None else ""
+        repo += f"{self.username}/" if self.username is not None else ""
+        return repo
 
     def get_docker_name(self) -> str:
-        tag = ""
+        tag = None
         if self.prefix == '' and self.version == '':
-            tag = f"{self.username}/{self.name}:{self.__branch}"
+            tag = f"{self.name}"
         elif self.prefix == '' and self.version != '':
-            tag = f"{self.username}/{self.name}-{self.version}:{self.__branch}"
+            tag = f"{self.name}-{self.version}"
         elif self.prefix != '' and self.version != '':
-            tag = f"{self.username}/{self.prefix}-{self.name}-{self.version}:{self.__branch}"
+            tag = f"{self.prefix}-{self.name}-{self.version}"
         elif self.prefix != '' and self.version == '':
-            tag = f"{self.username}/{self.prefix}-{self.name}:{self.__branch}"
+            tag = f"{self.prefix}-{self.name}"
+
+        tag = f"{tag}:{self.__branch}"
+
+        repo = self.get_docker_repo()
+        if repo != "":
+            tag = f"{repo}{tag}"
+
         return tag
+
+    def push(self):
+        console.print(f"Push: {self.get_docker_name()}")
+
+        chunk_progress = {}
+
+        with Progress(auto_refresh=True, refresh_per_second=3, expand=True, transient=False) as progress:
+            for chunk in cli.push(repository=self.get_docker_name(), stream=True, decode=True):
+                #console.print(chunk)
+                #continue
+                if 'progressDetail' in chunk:
+                    if 'status' in chunk:
+                        if chunk["status"] == "Pushing":
+                            if 'total' in chunk["progressDetail"]:
+                                progress.update(chunk_progress[chunk["id"]], description="[yellow]Pushing " + chunk["id"],
+                                                total=chunk["progressDetail"]["total"],
+                                                completed=chunk["progressDetail"]["current"])
+                            else:
+                                #progress.console.print(chunk)
+                                continue
+                        elif chunk["status"] == "Preparing":
+                            chunk_progress[chunk["id"]] = progress.add_task(description="[blue]Preparing " + chunk["id"], visible=True, start=True)
+                        elif chunk["status"] == "Waiting":
+                            progress.update(chunk_progress[chunk["id"]], description="[red]Waiting " + chunk["id"])
+                        elif 'id' in chunk:
+                            progress.update(chunk_progress[chunk["id"]],
+                                            description="[green]" + chunk["status"] + " " + chunk["id"])
+
+                    else:
+                        progress.console.print(chunk)
+                elif 'status' in chunk:
+                    progress.console.print(chunk["status"])
+                else:
+                    progress.console.print(chunk)
 
     # https://docker-py.readthedocs.io/en/stable/api.html#module-docker.api.build
     def build(self, nocache: bool) -> bool:
-        args = {"TAG": self.__branch, "USERNAME": self.username}
+        args = {"TAG": self.__branch, "REPO": self.get_docker_repo()}
         args.update(self.parm)
 
         tag = self.get_docker_name()
 
-        print(f"============ Building {tag} ============ {args}")
+        console.print(f"Building {tag} {args}", style="bold red on black")
 
         streamer = cli.build(path=f"./{self.name}", tag=tag,
                              nocache=nocache, rm=False, buildargs=args,
@@ -79,20 +125,20 @@ class DockerBuildComponent:
                 for line in chunk['stream'].splitlines():
                     print(line)
             elif 'status' in chunk:
-                print(f"{Fore.GREEN}{chunk}{Style.RESET_ALL}")
+                print(f"{chunk}")
             elif 'message' in chunk:
                 for line in chunk['message'].splitlines():
-                    print(f"{Fore.YELLOW}{line}{Style.RESET_ALL}")
+                    print(f"{line}")
                 success = False
             elif 'aux' in chunk:
                 pass
             elif 'errorDetail' in chunk:
-                print(f"{Fore.YELLOW}{chunk['errorDetail']}{Style.RESET_ALL}")
+                console.print(f"{chunk['errorDetail']}", style="error")
                 success = False
             elif "\n" in chunk:
                 print("")
             else:
-                print(f"######### Unknown chunk ########## {chunk}")
+                console.print(f":bug: ######### Unknown chunk ########## {chunk}", style="error")
 
         return success
 
@@ -106,7 +152,7 @@ class DirComponent:
         self.scanned = False
 
     def show(self):
-        print(f"   name: {self.name}: dirs: {self.dirs}")
+        console.print(f"   name: {self.name}: dirs: {self.dirs}")
 
 
 def add_mk(pkg: [], name: str):
@@ -178,9 +224,18 @@ class BuildMk:
             else:
                 break  # Failed
 
+    def push(self):
+        os.chdir(self.__dir)
+        for p in self.__pkgs:
+            if type(p) is list:
+                for c in p:
+                    if not c.push():
+                        break  # Build failed
+            else:
+                break  # Failed
+
     def show(self):
-        print("=====================================================================================")
-        print(f"Path: {self.__dir}")
+        console.print(f"➡️  {self.__dir}")
         if self.__hasPrjFile:
             for p in self.__pkgs:
                 if type(p) is list:
@@ -190,9 +245,6 @@ class BuildMk:
                 for p in self.__dirs:
                     if type(p) is DirComponent:
                         p.show()
-
-
-flprj: BuildMk
 
 
 class AllBuildMk:
@@ -237,14 +289,17 @@ class AllBuildMk:
 
         try:
             for p in self.__prjs:
-                print(f"===> {p.get_repos_name()}")
+                console.print(f"🔄 {p.get_repos_name()}")
                 os.chdir(p.get_prj_dir())
                 match cd:
                     case ["build"]:
-                        p.build()
+                        p.build(nocache=False)
 
                     case ["rebuild"]:
-                        p.build(True)
+                        p.build(nocache=True)
+
+                    case ["docker", "push"]:
+                        p.push()
 
                     case ["add", "origin"]:
                         cmd = f"git remote add origin git@github.com:{github_username}/{p.get_repos_name()}.git"
@@ -254,7 +309,7 @@ class AllBuildMk:
                         cmd = f"git remote remove origin"
                         os.system(cmd)
 
-                    case ["push", "all"]:
+                    case ["git", "push", "all"]:
                         cmd = f"git push --all origin"
                         os.system(cmd)
 
@@ -302,14 +357,56 @@ class AllBuildMk:
         return True
 
 
+def init_docker():
+    global dc, cli
+    dc = docker.from_env()
+
+    tls_config = docker.tls.TLSConfig(
+        ca_cert=dc.api.verify,
+        client_cert=dc.api.cert,
+        verify=True)
+
+    # https://www.programcreek.com/python/?code=picoCTF%2FpicoCTF%2FpicoCTF-master%2FpicoCTF-shell%2Fhacksport%2Fdocker.py: Search "tls_config"
+    cli = docker.APIClient(base_url=dc.api.base_url, tls=tls_config)
+
+
+def init():
+    global so_username
+    global registry_name
+    global console
+    global github_username
+
+    # Install Rich
+    install()
+
+    flprj: BuildMk
+
+    # Docker framework
+    dc = None
+    cli = None
+
+    custom_theme = Theme({"success": "green", "error": "bold red"})
+    console = Console(theme=custom_theme)
+
+    so_username = getpass.getuser()
+    github_username = "rogeriomm"
+    registry_name = "registry.minikube:5000"
+
+    init_docker()
+
+
 def main():
+    init()
+
     p = AllBuildMk()
     p.scan()
+
     argv = sys.argv[1:]
     if len(argv) == 0:
         return
+
     if not p.command(argv):
-        print("Invalid command")
+        console.print("Invalid command")
 
 
 if __name__ == '__main__':
