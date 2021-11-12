@@ -74,12 +74,11 @@ class DockerBuildComponent:
     def push(self):
         console.print(f"Push: {self.get_docker_name()}")
 
+        ret = True
         chunk_progress = {}
 
         with Progress(auto_refresh=True, refresh_per_second=3, expand=True, transient=False) as progress:
             for chunk in cli.push(repository=self.get_docker_name(), stream=True, decode=True):
-                #console.print(chunk)
-                #continue
                 if 'progressDetail' in chunk:
                     if 'status' in chunk:
                         if chunk["status"] == "Pushing":
@@ -88,7 +87,6 @@ class DockerBuildComponent:
                                                 total=chunk["progressDetail"]["total"],
                                                 completed=chunk["progressDetail"]["current"])
                             else:
-                                #progress.console.print(chunk)
                                 continue
                         elif chunk["status"] == "Preparing":
                             chunk_progress[chunk["id"]] = progress.add_task(description="[blue]Preparing " + chunk["id"], visible=True, start=True)
@@ -97,16 +95,20 @@ class DockerBuildComponent:
                         elif 'id' in chunk:
                             progress.update(chunk_progress[chunk["id"]],
                                             description="[green]" + chunk["status"] + " " + chunk["id"])
-
                     else:
                         progress.console.print(chunk)
                 elif 'status' in chunk:
                     progress.console.print(chunk["status"])
+                elif 'errorDetail' in chunk:
+                    progress.console.print(chunk['errorDetail']['message'])
                 else:
-                    progress.console.print(chunk)
+                    progress.console.print(f":bug: {chunk}")
+        return ret
 
     # https://docker-py.readthedocs.io/en/stable/api.html#module-docker.api.build
     def build(self, nocache: bool) -> bool:
+        ret = True
+
         args = {"TAG": self.__branch, "REPO": self.get_docker_repo()}
         args.update(self.parm)
 
@@ -118,8 +120,6 @@ class DockerBuildComponent:
                              nocache=nocache, rm=False, buildargs=args,
                              forcerm=True,
                              decode=True)
-        success = True
-
         for chunk in streamer:
             if 'stream' in chunk:
                 for line in chunk['stream'].splitlines():
@@ -129,18 +129,18 @@ class DockerBuildComponent:
             elif 'message' in chunk:
                 for line in chunk['message'].splitlines():
                     print(f"{line}")
-                success = False
+                ret = False
             elif 'aux' in chunk:
                 pass
             elif 'errorDetail' in chunk:
                 console.print(f"{chunk['errorDetail']}", style="error")
-                success = False
+                ret = False
             elif "\n" in chunk:
                 print("")
             else:
-                console.print(f":bug: ######### Unknown chunk ########## {chunk}", style="error")
+                console.print(f":bug: Unknown chunk {chunk}", style="error")
 
-        return success
+        return ret
 
 
 class DirComponent:
@@ -220,6 +220,7 @@ class BuildMk:
             if type(p) is list:
                 for c in p:
                     if not c.build(nocache):
+                        console.print(f"Building \"{c.get_docker_name()}\" failed.", style="error")
                         break  # Build failed
             else:
                 break  # Failed
@@ -230,7 +231,8 @@ class BuildMk:
             if type(p) is list:
                 for c in p:
                     if not c.push():
-                        break  # Build failed
+                        console.print(f"Pushing \"{c.get_docker_name()}\" failed.", style="error")
+                        break  # Push failed
             else:
                 break  # Failed
 
